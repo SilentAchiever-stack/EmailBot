@@ -6,6 +6,20 @@ escalates (forwards with context) to a human for anything uncertain,
 a complaint, or urgent. Runs as a real API — trigger an inbox check
 on demand instead of it running automatically on load.
 
+## Live deployment
+
+This is deployed and running at:
+```
+https://emailbot-8yjj.onrender.com
+```
+
+**Important — Render free tier "cold starts":** on Render's free tier,
+a web service spins down after a period of no traffic and takes 30-60
+seconds to wake back up on the next request. The very first call after
+inactivity will feel slow or may briefly time out — this is normal
+behavior for the free tier, not a bug. Just try again if the first
+call fails, and it'll respond quickly on the next attempt.
+
 ## How it works
 
 1. **Read** — connects to your Gmail inbox via IMAP, finds unread emails
@@ -25,7 +39,7 @@ This mirrors the human-in-the-loop pattern from earlier in your
 roadmap: the bot only acts confidently when it's genuinely confident,
 and hands off everything else.
 
-## Setup
+## Setup (for running your own copy)
 
 1. **Generate an App Password**: Google Account > Security > 2-Step
    Verification > App Passwords (Gmail IMAP is on by default now, no
@@ -35,35 +49,49 @@ and hands off everything else.
    - `GEMINI_API_KEY`
    - `EMAIL_USER` / `EMAIL_APP_PASSWORD` — the inbox being monitored
    - `ESCALATION_EMAIL` — where uncertain emails get forwarded
-   - `PORT` — pick a unique port if running alongside other local
-     projects (this defaults to 3001)
+   - `PORT` — only matters locally; Render assigns its own port
+     automatically in production, which the code already handles
 
-3. Install and run:
-   ```
-   npm install
-   node emailBot.js
-   ```
-   You should see: `Email Bot API running on http://localhost:<PORT>`
+3. **If deploying your own copy to Render**: don't upload a `.env`
+   file — instead, add each variable individually under your Render
+   service's Environment settings tab. This keeps real credentials
+   out of your GitHub repo.
 
-## Calling the API
+## How to actually use this, now that it's live
 
-**Trigger an inbox check** (POST) — checks for unread emails and
-processes up to 3 of them:
+The bot doesn't run automatically on a timer by default — it waits for
+something to call `/api/check-inbox`. That means you (or something
+else) need to trigger it. Real ways this gets used in practice:
+
+**1. Manually, whenever you want to check the inbox:**
 ```powershell
-Invoke-RestMethod -Uri "http://localhost:3001/api/check-inbox" -Method POST
+Invoke-RestMethod -Uri "https://emailbot-8yjj.onrender.com/api/check-inbox" -Method POST
 ```
-Returns a JSON log of what happened — which emails were replied to,
-which were escalated, and why.
+Returns a JSON log of what happened this run.
 
-**Health check** (GET):
+**2. On a schedule, automatically** — this is the realistic production
+setup. Use a free scheduling service (like cron-job.org, or Render's
+own paid Cron Jobs feature) to call this same URL every 5-15 minutes,
+so the inbox gets checked continuously without you doing it by hand.
+
+**3. Triggered by another automation** — e.g. an n8n workflow with a
+Schedule node that calls this URL on a timer, or a Zapier/Make.com
+automation doing the same.
+
+**Health check** (confirm it's alive and see which inbox it's watching):
 ```powershell
-Invoke-RestMethod -Uri "http://localhost:3001/api/health"
+Invoke-RestMethod -Uri "https://emailbot-8yjj.onrender.com/api/health"
 ```
 
-**One-off CLI test** (no API, just a quick terminal run):
+## Local development (before deploying changes)
+
+Test locally first before pushing changes to the live URL:
 ```
-node emailBot.js --cli
+npm install
+node emailBot.js
 ```
+Then call `http://localhost:<PORT>/api/check-inbox` instead of the
+live URL, exactly the same way.
 
 ## IMPORTANT — test with a real test inbox, not your main one
 
